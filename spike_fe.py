@@ -38,6 +38,6 @@ class SpikeFeatureExtractPCA(object):
     for idx in range (0, row):
       ori_wave = origin_data[idx]
       recon_vec = eig_vec[:, :k]
-      recon_wave[idx] = ori_wave.dot(recon_vec.dot(recon_vec.T))
+      recon_wave[idx] = ori_wave.dot(recon_vec.dot(recon_vec.T)).real
 
     return recon_wave

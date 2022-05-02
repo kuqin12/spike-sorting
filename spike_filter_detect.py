@@ -56,7 +56,6 @@ def get_spikes(data, spike_window=80, tf=5, offset=10, max_thresh=350):
 
     # Remove duplicates
     ind = np.where(np.diff(spike_samp) > 1)[0]
-    spike_samp = spike_samp[ind]
     wave_form = wave_form[ind]
 
-    return spike_samp, wave_form
+    return wave_form
