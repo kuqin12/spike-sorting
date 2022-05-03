@@ -1,15 +1,25 @@
 from pyspark.ml.feature import PCA
-from pyspark.mllib.linalg import Vectors
+from pyspark.ml.linalg import Vectors
+import numpy as np
 
 class SpikeFeatureExtractPCA_MLLib(object):
 
-  def __init__(self, spark_cntxt):
-    self.sc = spark_cntxt
+  def __init__(self, spark):
+    self.sp = spark
 
   def PCA(self, origin_data, k=10):
-    pca = PCA(k)
-    model = pca.fit(origin_data)
+    list_data = [(Vectors.dense(form.tolist()),) for form in origin_data]
 
-    result = model.transform(origin_data)
+    data = self.sp.createDataFrame (list_data, ['np_waveforms'])
+    data.printSchema()
+
+    pca = PCA(k=k, inputCol="np_waveforms", outputCol="pcawaveforms")
+    model = pca.fit(data)
+
+    recon = model.transform(data)
+    out = recon.select('pcawaveforms').rdd.map(lambda r: r[0]).collect()
+    print (out)
+
+    result = [np.array(row) for row in out]
 
     return result

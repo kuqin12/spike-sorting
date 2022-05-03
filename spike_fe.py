@@ -11,8 +11,8 @@ MAX_ITER = 20
 
 class SpikeFeatureExtractPCA(object):
 
-  def __init__(self, spark_cntxt):
-    self.sc = spark_cntxt
+  def __init__(self, spark):
+    self.sp = spark
 
   def PCA(self, origin_data, k=10):
 

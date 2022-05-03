@@ -27,7 +27,7 @@ class SpikeClusterKMeans_MLLib(object):
   def KMeans(self, waveforms, k=3):
 
     # Loads data.
-    dataset = self.sc.read.format("libsvm").load(waveforms)
+    dataset = self.sc.parallelize (waveforms)
 
     # Trains a k-means model.
     kmeans = KMeans().setK(k).setSeed(1).setMaxIter(MAX_ITER)
