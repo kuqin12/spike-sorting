@@ -91,9 +91,9 @@ def main ():
       sliced_data = raw_data_16[chn::Paths.Channels]
 
       spike_data = sp_fd.filter_data(sliced_data, low=300, high=6000, sf=SAMPLE_FREQ)
-      plt.plot(timestamp, spike_data)
-      plt.suptitle('Channel %d' % (chn + 1))
-      plt.show ()
+      # plt.plot(timestamp, spike_data)
+      # plt.suptitle('Channel %d' % (chn + 1))
+      # plt.show ()
 
       wave_form = sp_fd.get_spikes(spike_data, spike_window=50, tf=8, offset=20, max_thresh=1000)
       if len(wave_form) == 0:
@@ -107,12 +107,11 @@ def main ():
 
       logging.critical ("Done processing PCA!!!")
 
-      cluster_means, cluster_std = skm.KMeans (extracted_wave, k=3)
-      fig, ax = plt.subplots(figsize=(15, 5))
+      clusters = skm.KMeans (extracted_wave, k=3)
+      logging.critical ("Done clustering!!!")
       for idx in range (3):
-        ax.plot (range(len(cluster_means[idx])), cluster_means[idx], label = "line %d" % idx)
-        ax.fill_between (range(len(cluster_means[idx])), cluster_means[idx]-cluster_std[idx], cluster_means[idx]+cluster_std[idx], alpha=0.2)
-      plt.show ()
+        cluster = clusters[idx]
+        logging.critical (cluster)
 
   return 0
 

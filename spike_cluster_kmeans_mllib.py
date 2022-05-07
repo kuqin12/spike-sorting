@@ -39,12 +39,9 @@ class SpikeClusterKMeans_MLLib(object):
 
     a = dataset.collect()
 
-    for item in a:
-      idx = model.predict(item.features)
-      diff = (item - centers[idx])[0]
-      std[idx] = (std[idx][0] + diff * diff, std[idx][1] + 1)
+    clusters = [ [] for _ in range(k) ]
+    for idx in range(len(a)):
+      pre = model.predict(a[idx].features)
+      clusters[pre].append (idx)
 
-    for idx in range(k):
-      std[idx] = np.sqrt (std[idx][0]/std[idx][1])
-
-    return (centers, std)
+    return clusters

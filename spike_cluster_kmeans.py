@@ -31,7 +31,7 @@ class SpikeClusterKMeans(object):
       if min_dist == -1 or min_dist > measure:
         new_cluster = cnt_idx
         min_dist = measure
-    return (new_cluster, (ret, point))
+    return (new_cluster, ret, point)
 
   @staticmethod
   def update_cent (entry, center):
@@ -64,7 +64,6 @@ class SpikeClusterKMeans(object):
       centroids[idx] = random.choice(waveforms)
 
     std = [0] * k
-    dev = [0] * k
 
     logging.debug ("Initialize RDD")
     data = self.sp.sparkContext.parallelize(waveforms)
@@ -72,25 +71,32 @@ class SpikeClusterKMeans(object):
 
     # 3: for iteration := 1 to MAX ITER do
     for round in range (0, max_iter + 1):
+      clusters = [ [] for _ in range(k) ]
       # 4: for each point x in the dataset do
       # 5: Cluster of x ← the cluster with the closest centroid to x
       # 6: end for
       logging.info ("Round %d, test point 1" % round)
-      data_group = data.map (lambda a: SpikeClusterKMeans.eval_cnt (a, centroids))
+      for idx in range (len(waveforms)):
+        res = SpikeClusterKMeans.eval_cnt (waveforms[idx], centroids)
+        clusters[res[0]].append ((idx, res[1], res[2]))
 
       # 7: for each cluster P do
       # 8: Centroid of P ← the mean of all the data points assigned to P
       # 9: end for
-      logging.info ("Round %d, test point 4" % round)
-      res = data_group.mapValues(lambda a: (a[1], 1)).reduceByKey(lambda x, y: (x[0] + y[0], x[1] + y[1])).map (lambda a: SpikeClusterKMeans.update_cent (a, centroids))
+      logging.info ("Round %d, test point 2" % round)
+      for idx in range(k):
+        cluster = clusters[idx]
+        if len (cluster) > 0:
+          centroids[idx] = sum(point for _, _, point in cluster) / len (cluster)
+      logging.info ("Round %d, test point 3" % round)
 
       logging.debug ("Round %d complete" % round)
 
-    ret = res.collect()
-    std_c = sorted(data.map(lambda a: SpikeClusterKMeans.error(a, centroids)).reduceByKey(lambda x, y: (x[0] + y[0], x[1] + y[1])).mapValues(lambda v: np.sqrt(v[0] / v[1])).collect())
-
-    for idx, std_v in std_c:
-      std[idx] = std_v
+    # 7: for each cluster P do
+    # 8: Centroid of P ← the mean of all the data points assigned to P
+    # 9: end for
+    for idx in range(k):
+      clusters[idx] = [i for i, _, _ in clusters[idx]]
 
     # 11: end for
-    return (centroids, std)
+    return clusters
