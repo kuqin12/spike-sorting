@@ -6,8 +6,9 @@ from pyspark.sql import *
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import functions as F
 from math import sqrt
+from spike_cluster_type import SpikeClustering
 
-class SpikeClusterKMeans(object):
+class SpikeClusterKMeans(SpikeClustering):
 
   def __init__(self, spark):
     self.sp = spark
@@ -56,7 +57,7 @@ class SpikeClusterKMeans(object):
     return (new_cluster, (ret, 1))
 
   # Implement k-means
-  def KMeans(self, waveforms, k=3, max_iter=20):
+  def Cluster(self, waveforms, k=3, max_iter=20):
 
     # for initialization, we randomly select k centroids
     centroids = [None] * k

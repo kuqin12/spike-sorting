@@ -10,15 +10,42 @@ from pyspark.sql import *
 
 import spike_filter_detect as sp_fd
 
-from spike_cluster_kmeans import SpikeClusterKMeans
 from spike_fe import SpikeFeatureExtractPCA
-from spike_cluster_kmeans_mllib import SpikeClusterKMeans_MLLib
 from spike_fe_mllib import SpikeFeatureExtractPCA_MLLib
+
+from spike_cluster_kmeans import SpikeClusterKMeans
+from spike_cluster_kmeans_mllib import SpikeClusterKMeans_MLLib
+from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
+from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
 
 SAMPLE_FREQ = 30000
+
+def FEFactory(InputString, context=None):
+  if(InputString.lower() == "pca"):
+    return SpikeFeatureExtractPCA (context)
+
+  if(InputString.lower() == "mlpca"):
+    return SpikeFeatureExtractPCA_MLLib (context)
+
+  raise Exception("Unsupported Feature Extration String %s" % InputString)
+
+def ClusterFactory(InputString, context=None):
+  if(InputString.lower() == "mlkm"):
+    return SpikeClusterKMeans_MLLib(context)
+
+  if(InputString.lower() == "km"):
+    return SpikeClusterKMeans(context)
+
+  if(InputString.lower() == "sklgmm"):
+    return SpikeClusterGMM_SKL(context)
+
+  if(InputString.lower() == "sklkm"):
+    return SpikeClusterKmeans_SKL(context)
+
+  raise Exception("Unsupported Clustering String %s" % InputString)
 
 # Setup import and argument parser
 def path_parse():
@@ -39,7 +66,15 @@ def path_parse():
         )
     parser.add_argument (
         '-c', '--channels', dest = 'Channels', type=int, default=384,
-        help = '''Intervals in seconds to process the data, the bigger, the more accurate'''
+        help = '''Number of channels contained in data file'''
+        )
+    parser.add_argument (
+        '-fe', '--FeatureExtraction', dest = 'FeatureExtraction', type=str, default='pca',
+        help = '''Feature extraction method used for decomposition. Currently supported are 'pca' and 'mlpca'.'''
+        )
+    parser.add_argument (
+        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='sklgmm',
+        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm', 'sklkm' and 'sklgmm'.'''
         )
 
     Paths = parser.parse_args()
@@ -71,12 +106,8 @@ def main ():
   sc.setLogLevel("WARN")
 
   # This is Kun's home brew implementation
-  skm = SpikeClusterKMeans (spark)
-  sfe = SpikeFeatureExtractPCA (spark)
-
-  # # This is purely from spark MLLib
-  # skm = SpikeClusterKMeans_MLLib (spark)
-  # sfe = SpikeFeatureExtractPCA_MLLib (spark)
+  fe_model = FEFactory (Paths.FeatureExtraction, spark)
+  cluster_model = ClusterFactory (Paths.ClusterMethod, spark)
   start_time = 0
 
   with open (Paths.InputFile, 'rb') as input:
@@ -101,13 +132,19 @@ def main ():
         logging.critical ("no spike here, bail this channel for this interval %d." % (chn + 1))
         continue
 
+      if len(wave_form) <= 3:
+        # Less than cluster numbers, bail fast for this interval
+        logging.critical ("Less than cluster numbers, bail fast for this interval %d." % (chn + 1))
+        continue
+
       # Now we are ready to cook. Start from feature extraction
       logging.critical ("Start to process %d waveforms with PCA." % len(wave_form))
-      extracted_wave = sfe.PCA (wave_form)
+      extracted_wave = fe_model.FE (wave_form)
 
       logging.critical ("Done processing PCA!!!")
 
-      clusters = skm.KMeans (extracted_wave, k=3)
+      # clusters = skm.KMeans (extracted_wave, k=3)
+      clusters = cluster_model.Cluster (extracted_wave, k=3)
       logging.critical ("Done clustering!!!")
       for idx in range (3):
         cluster = clusters[idx]

@@ -6,10 +6,10 @@ from pyspark.sql import *
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import functions as F
 from math import sqrt
-from sklearn import mixture
+from sklearn.cluster import KMeans
 from spike_cluster_type import SpikeClustering
 
-class SpikeClusterGMM_SKL(SpikeClustering):
+class SpikeClusterKmeans_SKL(SpikeClustering):
 
   def __init__(self, spark):
     self.sp = spark
@@ -17,9 +17,9 @@ class SpikeClusterGMM_SKL(SpikeClustering):
   # Fit into Gaussian Mixture Model
   def Cluster(self, waveforms, k=3, max_iter=20):
 
-    gmm = mixture.GaussianMixture(n_components=k, max_iter=max_iter)
-    gmm.fit(waveforms)
-    labels = gmm.predict(waveforms)
+    km = KMeans(n_clusters=k, max_iter=max_iter)
+    km.fit(waveforms)
+    labels = km.labels_
 
     clusters = [ [] for _ in range(k) ]
 

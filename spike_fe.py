@@ -6,13 +6,14 @@ from pyspark.sql import *
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import functions as F
 from math import sqrt
+from spike_fe_type import SpikeFeatureExtract
 
-class SpikeFeatureExtractPCA(object):
+class SpikeFeatureExtractPCA(SpikeFeatureExtract):
 
   def __init__(self, spark):
     self.sp = spark
 
-  def PCA(self, origin_data, k=10):
+  def FE(self, origin_data, k=10):
 
     row = len(origin_data)
     col = len(origin_data[0])
@@ -31,6 +32,7 @@ class SpikeFeatureExtractPCA(object):
     sigma = sigma / row
 
     logging.info ("Start to solve eigen values...")
+    sigma = np.nan_to_num(sigma)
     eig_val, eig_vec = np.linalg.eig (sigma)
     logging.info ("Solve done!")
 
