@@ -10,8 +10,9 @@ from math import sqrt
 
 from pyspark.ml.clustering import KMeans
 from pyspark.ml.evaluation import ClusteringEvaluator
+from spike_cluster_type import SpikeClustering
 
-class SpikeClusterKMeans_MLLib(object):
+class SpikeClusterKMeans_MLLib(SpikeClustering):
 
   def __init__(self, spark):
     self.sp = spark
@@ -23,7 +24,7 @@ class SpikeClusterKMeans_MLLib(object):
     return (model.predict(point), (sum([x**2 for x in (point - center)]), 1))
 
   # Implement k-means
-  def KMeans(self, waveforms, k=3, max_iter=20):
+  def Cluster(self, waveforms, k=3, max_iter=20):
     list_data = [(Vectors.dense(form.tolist()),) for form in waveforms]
 
     # Loads data.
