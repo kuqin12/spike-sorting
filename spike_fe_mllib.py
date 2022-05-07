@@ -2,13 +2,14 @@ from pyspark.ml.feature import PCA
 from pyspark.ml.linalg import Vectors
 import numpy as np
 import logging
+from spike_fe_type import SpikeFeatureExtract
 
-class SpikeFeatureExtractPCA_MLLib(object):
+class SpikeFeatureExtractPCA_MLLib(SpikeFeatureExtract):
 
   def __init__(self, spark):
     self.sp = spark
 
-  def PCA(self, origin_data, k=10):
+  def FE(self, origin_data, k=10):
     list_data = [(Vectors.dense(form.tolist()),) for form in origin_data]
 
     data = self.sp.createDataFrame (list_data, ['np_waveforms'])
