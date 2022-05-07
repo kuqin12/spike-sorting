@@ -107,12 +107,10 @@ def main ():
 
       logging.critical ("Done processing PCA!!!")
 
-      cluster_means, cluster_std = skm.KMeans (extracted_wave, k=3)
-      fig, ax = plt.subplots(figsize=(15, 5))
+      clusters = skm.KMeans (extracted_wave, k=3)
       for idx in range (3):
-        ax.plot (range(len(cluster_means[idx])), cluster_means[idx], label = "line %d" % idx)
-        ax.fill_between (range(len(cluster_means[idx])), cluster_means[idx]-cluster_std[idx], cluster_means[idx]+cluster_std[idx], alpha=0.2)
-      plt.show ()
+        cluster = clusters[idx]
+        logging.critical (cluster)
 
   return 0
 
