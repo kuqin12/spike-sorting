@@ -38,7 +38,7 @@ def ClusterFactory(InputString, context=None):
   if(InputString.lower() == "km"):
     return SpikeClusterKMeans(context)
 
-  if(InputString.lower() == "gmm"):
+  if(InputString.lower() == "slkgmm"):
     return SpikeClusterGMM_SKL(context)
 
   raise Exception("Unsupported Hash Algorithm String %s" % InputString)
@@ -69,8 +69,8 @@ def path_parse():
         help = '''Feature extraction method used for decomposition. Currently supported are 'pca' and 'mlpca'.'''
         )
     parser.add_argument (
-        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='gmm',
-        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm' and 'gmm'.'''
+        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='slkgmm',
+        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm' and 'slkgmm'.'''
         )
 
     Paths = parser.parse_args()
