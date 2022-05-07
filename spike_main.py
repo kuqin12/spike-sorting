@@ -71,12 +71,12 @@ def main ():
   sc.setLogLevel("WARN")
 
   # This is Kun's home brew implementation
-  skm = SpikeClusterKMeans (sc)
-  sfe = SpikeFeatureExtractPCA (sc)
+  skm = SpikeClusterKMeans (spark)
+  sfe = SpikeFeatureExtractPCA (spark)
 
   # # This is purely from spark MLLib
-  # skm = SpikeClusterKMeans_MLLib (sc)
-  # sfe = SpikeFeatureExtractPCA_MLLib (sc)
+  # skm = SpikeClusterKMeans_MLLib (spark)
+  # sfe = SpikeFeatureExtractPCA_MLLib (spark)
   start_time = 0
 
   with open (Paths.InputFile, 'rb') as input:
@@ -92,18 +92,18 @@ def main ():
 
       spike_data = sp_fd.filter_data(sliced_data, low=300, high=6000, sf=SAMPLE_FREQ)
       plt.plot(timestamp, spike_data)
+      plt.suptitle('Channel %d' % (chn + 1))
       plt.show ()
 
-      wave_form = sp_fd.get_spikes(spike_data, spike_window=50, tf=8, offset=20, max_thresh=500)
+      wave_form = sp_fd.get_spikes(spike_data, spike_window=50, tf=8, offset=20, max_thresh=1000)
       if len(wave_form) == 0:
         # no spike here, bail this channel for this interval
+        logging.critical ("no spike here, bail this channel for this interval %d." % (chn + 1))
         continue
 
       # Now we are ready to cook. Start from feature extraction
       logging.critical ("Start to process %d waveforms with PCA." % len(wave_form))
       extracted_wave = sfe.PCA (wave_form)
-      plt.plot (extracted_wave)
-      plt.show ()
 
       logging.critical ("Done processing PCA!!!")
 
