@@ -74,7 +74,7 @@ def path_parse():
         )
     parser.add_argument (
         '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='sklgmm',
-        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm' and 'sklgmm'.'''
+        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm', 'sklkm' and 'sklgmm'.'''
         )
 
     Paths = parser.parse_args()
