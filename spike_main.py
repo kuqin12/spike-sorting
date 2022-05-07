@@ -14,8 +14,9 @@ from spike_fe import SpikeFeatureExtractPCA
 from spike_fe_mllib import SpikeFeatureExtractPCA_MLLib
 
 from spike_cluster_kmeans import SpikeClusterKMeans
-from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 from spike_cluster_kmeans_mllib import SpikeClusterKMeans_MLLib
+from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
+from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
@@ -29,7 +30,7 @@ def FEFactory(InputString, context=None):
   if(InputString.lower() == "mlpca"):
     return SpikeFeatureExtractPCA_MLLib (context)
 
-  raise Exception("Unsupported Hash Algorithm String %s" % InputString)
+  raise Exception("Unsupported Feature Extration String %s" % InputString)
 
 def ClusterFactory(InputString, context=None):
   if(InputString.lower() == "mlkm"):
@@ -38,10 +39,13 @@ def ClusterFactory(InputString, context=None):
   if(InputString.lower() == "km"):
     return SpikeClusterKMeans(context)
 
-  if(InputString.lower() == "slkgmm"):
+  if(InputString.lower() == "sklgmm"):
     return SpikeClusterGMM_SKL(context)
 
-  raise Exception("Unsupported Hash Algorithm String %s" % InputString)
+  if(InputString.lower() == "sklkm"):
+    return SpikeClusterKmeans_SKL(context)
+
+  raise Exception("Unsupported Clustering String %s" % InputString)
 
 # Setup import and argument parser
 def path_parse():
@@ -69,8 +73,8 @@ def path_parse():
         help = '''Feature extraction method used for decomposition. Currently supported are 'pca' and 'mlpca'.'''
         )
     parser.add_argument (
-        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='slkgmm',
-        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm' and 'slkgmm'.'''
+        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='sklgmm',
+        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm' and 'sklgmm'.'''
         )
 
     Paths = parser.parse_args()
