@@ -143,7 +143,6 @@ def main ():
 
       logging.critical ("Done processing PCA!!!")
 
-      # clusters = skm.KMeans (extracted_wave, k=3)
       clusters = cluster_model.Cluster (extracted_wave, k=3)
       logging.critical ("Done clustering!!!")
       for idx in range (3):
