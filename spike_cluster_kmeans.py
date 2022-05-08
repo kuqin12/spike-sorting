@@ -66,17 +66,12 @@ class SpikeClusterKMeans(SpikeClustering):
 
     std = [0] * k
 
-    logging.debug ("Initialize RDD")
-    data = self.sp.sparkContext.parallelize(waveforms)
-    logging.debug ("Keamns entry")
-
     # 3: for iteration := 1 to MAX ITER do
     for round in range (0, max_iter + 1):
       clusters = [ [] for _ in range(k) ]
       # 4: for each point x in the dataset do
       # 5: Cluster of x ← the cluster with the closest centroid to x
       # 6: end for
-      logging.info ("Round %d, test point 1" % round)
       for idx in range (len(waveforms)):
         res = SpikeClusterKMeans.eval_cnt (waveforms[idx], centroids)
         clusters[res[0]].append ((idx, res[1], res[2]))
@@ -84,14 +79,10 @@ class SpikeClusterKMeans(SpikeClustering):
       # 7: for each cluster P do
       # 8: Centroid of P ← the mean of all the data points assigned to P
       # 9: end for
-      logging.info ("Round %d, test point 2" % round)
       for idx in range(k):
         cluster = clusters[idx]
         if len (cluster) > 0:
           centroids[idx] = sum(point for _, _, point in cluster) / len (cluster)
-      logging.info ("Round %d, test point 3" % round)
-
-      logging.debug ("Round %d complete" % round)
 
     # 7: for each cluster P do
     # 8: Centroid of P ← the mean of all the data points assigned to P
