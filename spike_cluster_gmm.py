@@ -17,21 +17,21 @@ class SpikeClusterGMM(SpikeClustering):
   # Helper function to calculate euclidean distance
   # Note that this is square as is!!!
   @staticmethod
-  def e_gamma (point, mu_i, sigma_i):
+  def e_prob (point, mu_i, sigma_i, k):
     mid = np.matmul ((point - mu_i).T, np.linalg.inv(sigma_i))
     order = -np.matmul (mid, (point - mu_i)) / 2
     det = np.linalg.det (sigma_i)
-    ret = (e ^ order) / np.sqrt ((2*np.pi)^k * det)
+    ret = np.exp (order) / np.sqrt (np.power((2*np.pi), k) * det)
     return ret
 
   @staticmethod
   def eval_cnt (point, mu, pi, sigma):
-    max_prob = 0
+    max_prob = -1
     new_cluster = None
     int_k = len (pi)
-    gamma = np.array([0] * int_k)
+    gamma = np.array([0] * int_k, dtype = float)
     for cnt_idx in range (0, int_k):
-      ret = SpikeClusterGMM.e_gamma (point, mu[cnt_idx], sigma[cnt_idx])
+      ret = SpikeClusterGMM.e_prob (point, mu[cnt_idx], sigma[cnt_idx], int_k)
       if max_prob < ret:
         new_cluster = cnt_idx
         max_prob = ret
@@ -57,7 +57,7 @@ class SpikeClusterGMM(SpikeClustering):
     sigma = [None] * k
     for idx in range (k):
       mu[idx] = random.choice(waveforms)
-      sigma[idx] = np.cov (waveforms.T)
+      sigma[idx] = np.abs(np.cov (waveforms.T))
 
     # Iterate towards the convergence
     for round in range (0, max_iter + 1):
@@ -71,14 +71,14 @@ class SpikeClusterGMM(SpikeClustering):
       # M-Step
       for idx in range(k):
         sum_d = 0
-        sum_s = np.array ([[0] * len(waveforms[0])] * len(waveforms[0]))
+        sum_s = np.array ([[0] * len(waveforms[0])] * len(waveforms[0]), dtype=float)
         sum_n = 0
         cluster = clusters[idx]
         # Fraction of number of points
         pi[idx] = len (cluster) / N
         for idx_2 in range(k):
           sum_d += sum(point * gamma[idx] for _, point, gamma in clusters[idx_2])
-          sum_s += sum(point * point.T * gamma[idx] for _, point, gamma in clusters[idx_2])
+          sum_s += sum(np.dot (point[:,None], [point]) * gamma[idx] for _, point, gamma in clusters[idx_2])
           sum_n += sum(point * gamma[idx] for _, point, gamma in clusters[idx_2])
         # Update means based on the points in this cluster
         mu[idx] = sum_d / sum_n

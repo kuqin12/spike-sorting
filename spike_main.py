@@ -17,6 +17,7 @@ from spike_cluster_kmeans import SpikeClusterKMeans
 from spike_cluster_kmeans_mllib import SpikeClusterKMeans_MLLib
 from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
 from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
+from spike_cluster_gmm import SpikeClusterGMM
 
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
@@ -44,6 +45,9 @@ def ClusterFactory(InputString, context=None):
 
   if(InputString.lower() == "sklkm"):
     return SpikeClusterKmeans_SKL(context)
+
+  if(InputString.lower() == "gmm"):
+    return SpikeClusterGMM(context)
 
   raise Exception("Unsupported Clustering String %s" % InputString)
 
@@ -74,7 +78,7 @@ def path_parse():
         )
     parser.add_argument (
         '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='sklgmm',
-        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm', 'sklkm' and 'sklgmm'.'''
+        help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm', 'sklkm', 'sklgmm' and 'gmm'.'''
         )
 
     Paths = parser.parse_args()
@@ -139,7 +143,7 @@ def main ():
 
       # Now we are ready to cook. Start from feature extraction
       logging.critical ("Start to process %d waveforms with PCA." % len(wave_form))
-      extracted_wave = fe_model.FE (wave_form)
+      extracted_wave = fe_model.FE (wave_form, k=8)
 
       logging.critical ("Done processing PCA!!!")
 
