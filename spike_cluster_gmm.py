@@ -15,23 +15,6 @@ class SpikeClusterGMM(SpikeClustering):
   def __init__(self, spark):
     self.sp = spark
 
-  @staticmethod
-  def eval_cnt (point, mu, pi, sigma):
-    max_prob = -1
-    new_cluster = None
-    int_k = len (pi)
-    gamma = np.array([0] * int_k, dtype = float)
-    for cnt_idx in range (0, int_k):
-      distribution = multivariate_normal (mean=mu[cnt_idx], cov=sigma[cnt_idx], allow_singular=True)
-      ret = distribution.pdf(point)
-      # ret = SpikeClusterGMM.e_prob (point, mu[cnt_idx], sigma[cnt_idx], int_k)
-      if max_prob < ret:
-        new_cluster = cnt_idx
-        max_prob = ret
-      gamma[cnt_idx] = ret * pi[cnt_idx]
-    gamma = gamma / sum (gamma)
-    return (new_cluster, point, gamma)
-
   # Implement GMM
   def Cluster(self, waveforms, k=3, max_iter=20):
 
