@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 import sys
-import wave
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from pyparsing import alphas
@@ -147,7 +147,10 @@ def main ():
 
       logging.critical ("Done processing PCA!!!")
 
+      # start = time.time()
       clusters = cluster_model.Cluster (extracted_wave, k=3)
+      # end = time.time()
+      # logging.critical("The time of execution of above step is : %f" % (end-start))
       logging.critical ("Done clustering!!!")
       for idx in range (3):
         cluster = clusters[idx]
