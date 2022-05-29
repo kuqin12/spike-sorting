@@ -19,6 +19,8 @@ from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
 from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 from spike_cluster_gmm import SpikeClusterGMM
 
+from spike_svm import SpikeSVMClassifier
+
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
 
@@ -112,6 +114,7 @@ def main ():
   # This is Kun's home brew implementation
   fe_model = FEFactory (Paths.FeatureExtraction, spark)
   cluster_model = ClusterFactory (Paths.ClusterMethod, spark)
+  svm_classifier = SpikeSVMClassifier(spark)
   start_time = 0
 
   with open (Paths.InputFile, 'rb') as input:
@@ -155,6 +158,14 @@ def main ():
       for idx in range (3):
         cluster = clusters[idx]
         logging.critical (cluster)
+
+      # Lastly, classify the results with SVM
+      labels = [0] * len(wave_form)
+      for idx in range (3):
+        cluster = clusters[idx]
+        for each in cluster:
+          labels[each] = idx
+      svm_classifier.Fit (data=extracted_wave, label=labels)
 
   return 0
 
