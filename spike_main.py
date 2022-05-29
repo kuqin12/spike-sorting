@@ -77,7 +77,7 @@ def path_parse():
         help = '''Feature extraction method used for decomposition. Currently supported are 'pca' and 'mlpca'.'''
         )
     parser.add_argument (
-        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='sklgmm',
+        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='km',
         help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm', 'sklkm', 'sklgmm' and 'gmm'.'''
         )
 
@@ -143,7 +143,7 @@ def main ():
 
       # Now we are ready to cook. Start from feature extraction
       logging.critical ("Start to process %d waveforms with PCA." % len(wave_form))
-      extracted_wave = fe_model.FE (wave_form, k=8)
+      extracted_wave = fe_model.FE (wave_form)
 
       logging.critical ("Done processing PCA!!!")
 
