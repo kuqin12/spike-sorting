@@ -159,6 +159,8 @@ def main ():
         cluster = clusters[idx]
         logging.critical (cluster)
 
+      # TODO: we need a bigger pull to cluster all channels' results
+
       # Lastly, classify the results with SVM
       labels = [0] * len(wave_form)
       for idx in range (3):
