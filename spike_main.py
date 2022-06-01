@@ -19,6 +19,8 @@ from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
 from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 from spike_cluster_gmm import SpikeClusterGMM
 
+from spike_svm import SpikeSVMClassifier
+
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
 
@@ -77,7 +79,7 @@ def path_parse():
         help = '''Feature extraction method used for decomposition. Currently supported are 'pca' and 'mlpca'.'''
         )
     parser.add_argument (
-        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='sklgmm',
+        '-cls', '--Cluster', dest = 'ClusterMethod', type=str, default='km',
         help = '''Clustering method used for this sorting. Currently supported are 'km', 'mlkm', 'sklkm', 'sklgmm' and 'gmm'.'''
         )
 
@@ -112,6 +114,7 @@ def main ():
   # This is Kun's home brew implementation
   fe_model = FEFactory (Paths.FeatureExtraction, spark)
   cluster_model = ClusterFactory (Paths.ClusterMethod, spark)
+  svm_classifier = SpikeSVMClassifier(spark)
   start_time = 0
 
   with open (Paths.InputFile, 'rb') as input:
@@ -143,7 +146,7 @@ def main ():
 
       # Now we are ready to cook. Start from feature extraction
       logging.critical ("Start to process %d waveforms with PCA." % len(wave_form))
-      extracted_wave = fe_model.FE (wave_form, k=8)
+      extracted_wave = fe_model.FE (wave_form)
 
       logging.critical ("Done processing PCA!!!")
 
@@ -155,6 +158,15 @@ def main ():
       for idx in range (3):
         cluster = clusters[idx]
         logging.critical (cluster)
+
+      # TODO: This should come after all channels processed
+      # Lastly, classify the results with SVM
+      labels = [0] * len(wave_form)
+      for idx in range (3):
+        cluster = clusters[idx]
+        for each in cluster:
+          labels[each] = idx
+      svm_classifier.Fit (data=extracted_wave, label=labels)
 
   return 0
 
