@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pyparsing import alphas
 from pyspark.sql import *
+from scipy.stats import median_abs_deviation
 
 import spike_filter_detect as sp_fd
 
@@ -24,7 +25,11 @@ from spike_svm import SpikeSVMClassifier
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
 
-SAMPLE_FREQ = 30000
+SAMPLE_FREQ       = 30000
+
+VICINITY_CHANNEL      = 8
+SIMILARITY_THRESHOLD  = 3
+# MINIMAL_CLUSTER_PORT  = 0.005
 
 def FEFactory(InputString, context=None):
   if(InputString.lower() == "pca"):
@@ -97,19 +102,34 @@ def path_parse():
 
     return Paths
 
+def cluster_distance (clusters_m, clusters_n):
+  # The maths is from https://doi.org/10.7554/eLife.34518
+  alpha_m = np.mean(clusters_m, axis=0)
+  alpha_n = np.mean(clusters_n, axis=0)
+  dist = alpha_m - alpha_n
+  # print (dist.shape)
+  # print (clusters_m.shape)
+  # print (clusters_n.shape)
+  gamma_m = median_abs_deviation(np.dot(clusters_m, dist))
+  gamma_n = median_abs_deviation(np.dot(clusters_n, -dist))
+  zeta_m_n =  np.linalg.norm(dist) / np.sqrt(gamma_m * gamma_m + gamma_n * gamma_n)
+  # print (zeta_m_n)
+  return zeta_m_n
+
 def main ():
 
   # Parse required paths passed from cmd line arguments
   Paths = path_parse()
 
   # create the Spark Session
-  spark = SparkSession.builder.getOrCreate()
+  # spark = SparkSession.builder.getOrCreate()
+  spark = None
 
-  # create the Spark Context
-  sc = spark.sparkContext
+  # # create the Spark Context
+  # sc = spark.sparkContext
 
-  # Mute the informational level logs
-  sc.setLogLevel("WARN")
+  # # Mute the informational level logs
+  # sc.setLogLevel("WARN")
 
   # This is Kun's home brew implementation
   fe_model = FEFactory (Paths.FeatureExtraction, spark)
@@ -138,6 +158,7 @@ def main ():
       if len(wave_form) == 0:
         # no spike here, bail this channel for this interval
         logging.debug ("no spike here, bail this channel for this interval %d." % (chn + 1))
+        summary_list.append (None)
         continue
 
       # Now we are ready to cook. Start from feature extraction
@@ -151,9 +172,10 @@ def main ():
         logging.debug ("Less than cluster numbers, bail fast for this interval %d." % (chn + 1))
         summary = [None] * len(extracted_wave)
         for idx in range (len(extracted_wave)):
-          c_sum = sum (extracted_wave[idx])
-          c_sum_sq = sum (np.square(extracted_wave[idx]))
-          summary[idx] = (1, c_sum, c_sum_sq)
+          # c_sum = sum (extracted_wave[idx])
+          # c_sum_sq = sum (np.square(extracted_wave[idx]))
+          summary[idx] = (extracted_wave[[idx]])
+        print (summary)
         summary_list.append (summary)
         continue
 
@@ -167,21 +189,76 @@ def main ():
       summary = [None] * 3
       for idx in range (3):
         cluster = clusters[idx]
-        logging.critical (cluster)
-        c_sum = sum (extracted_wave[cluster])
-        c_sum_sq = sum (np.square(extracted_wave[cluster]))
-        summary[idx] = (len(cluster), c_sum, c_sum_sq)
+        logging.debug (cluster)
+        # c_sum = sum (extracted_wave[cluster])
+        # c_sum_sq = sum (np.square(extracted_wave[cluster]))
+        summary[idx] = (extracted_wave[cluster])
 
       summary_list.append (summary)
 
-    # TODO: This should come after all channels processed
+    # Now that we have the list of labeled clusters, now we need to potentially merge the clusters in vicinity
+    logging.critical ("Starting to merge cross channel data!!!")
+    final_clusters = []
+    total_spikes = 0
+    for channel in range(VICINITY_CHANNEL, len(summary_list)):
+      # Here we process 4 overlapping tetrodes (each has 4 channels) at a time
+      channel_summary = summary_list[channel]
+      # when the channel did not collect any spikes
+      if channel_summary is None:
+        continue
+
+      for cluster_summary in channel_summary:
+        if cluster_summary is None:
+          continue
+
+        total_spikes += len(cluster_summary)
+        length = len(final_clusters)
+        if length == 0:
+          # create one cluster if it is empty
+          final_clusters.append ((cluster_summary, channel, channel))
+        else:
+          # search back to see how many final clusters are mergable with this one
+          index = length
+          merge_idx = None
+          min_cl_dist = -1
+          while index > 0:
+            (cl_sum, s_chn, _) = final_clusters[index - 1]
+            # making sure that the span of merged clusters will not exceed the range of 4 tetrodes
+            if channel - s_chn <= VICINITY_CHANNEL:
+              cl_dist = cluster_distance (cl_sum, cluster_summary)
+              if cl_dist < SIMILARITY_THRESHOLD:
+                # There is definitely going to be a merge
+                if merge_idx is None or min_cl_dist > cl_dist:
+                  merge_idx = index - 1
+                  min_cl_dist = cl_dist
+            else:
+              # Did not find anything to merge
+              break
+            index -= 1
+
+          # Update the cluster summary after all calculations
+          if merge_idx is not None:
+            final_clusters[merge_idx] = (np.vstack((cluster_summary, cl_sum)), s_chn, channel)
+          else:
+            final_clusters.append((cluster_summary, channel, channel))
+    logging.critical ("Done merging spikes. Total %d spikes and %d clusters!!!" % (total_spikes, len(final_clusters)))
+
     # Lastly, classify the results with SVM
-    labels = [0] * len(wave_form)
-    for idx in range (3):
-      cluster = clusters[idx]
-      for each in cluster:
-        labels[each] = idx
-    svm_classifier.Fit (data=extracted_wave, label=labels)
+    labels = [None] * total_spikes
+    all_waves = None
+    index = 0
+    for idx, each in enumerate(final_clusters):
+      if all_waves is None:
+        all_waves = each[0]
+      else:
+        all_waves = np.vstack((all_waves, each[0]))
+      for _ in range(len(each[0])):
+        # labels[index] = idx
+        index += 1
+    if index != total_spikes:
+      raise Exception ("Something is off %d %d" % (index, total_spikes))
+
+    svm_classifier.Fit (data=all_waves, label=labels)
 
   return 0
 
