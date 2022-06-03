@@ -125,6 +125,7 @@ def main ():
     timestamp = [(item / SAMPLE_FREQ) for item in range(start_time, start_time + SAMPLE_FREQ * Paths.Interval)]
 
     # TODO: Need to parallelize this
+    summary_list = []
     for chn in range (Paths.Channels):
       sliced_data = raw_data_16[chn::Paths.Channels]
 
@@ -136,37 +137,51 @@ def main ():
       wave_form = sp_fd.get_spikes(spike_data, spike_window=50, tf=8, offset=20, max_thresh=1000)
       if len(wave_form) == 0:
         # no spike here, bail this channel for this interval
-        logging.critical ("no spike here, bail this channel for this interval %d." % (chn + 1))
-        continue
-
-      if len(wave_form) <= 3:
-        # Less than cluster numbers, bail fast for this interval
-        logging.critical ("Less than cluster numbers, bail fast for this interval %d." % (chn + 1))
+        logging.debug ("no spike here, bail this channel for this interval %d." % (chn + 1))
         continue
 
       # Now we are ready to cook. Start from feature extraction
-      logging.critical ("Start to process %d waveforms with PCA." % len(wave_form))
+      logging.debug ("Start to process %d waveforms with PCA." % len(wave_form))
       extracted_wave = fe_model.FE (wave_form)
 
-      logging.critical ("Done processing PCA!!!")
+      logging.debug ("Done processing PCA!!!")
+
+      if len(extracted_wave) <= 3:
+        # Less than cluster numbers, bail fast for this interval
+        logging.debug ("Less than cluster numbers, bail fast for this interval %d." % (chn + 1))
+        summary = [None] * len(extracted_wave)
+        for idx in range (len(extracted_wave)):
+          c_sum = sum (extracted_wave[idx])
+          c_sum_sq = sum (np.square(extracted_wave[idx]))
+          summary[idx] = (1, c_sum, c_sum_sq)
+        summary_list.append (summary)
+        continue
 
       # start = time.time()
       clusters = cluster_model.Cluster (extracted_wave, k=3)
       # end = time.time()
-      # logging.critical("The time of execution of above step is : %f" % (end-start))
-      logging.critical ("Done clustering!!!")
+      # logging.debug("The time of execution of above step is : %f" % (end-start))
+      logging.debug ("Done clustering!!!")
+
+      # save the clusters by summary, so that they can still be in memory
+      summary = [None] * 3
       for idx in range (3):
         cluster = clusters[idx]
         logging.critical (cluster)
+        c_sum = sum (extracted_wave[cluster])
+        c_sum_sq = sum (np.square(extracted_wave[cluster]))
+        summary[idx] = (len(cluster), c_sum, c_sum_sq)
 
-      # TODO: This should come after all channels processed
-      # Lastly, classify the results with SVM
-      labels = [0] * len(wave_form)
-      for idx in range (3):
-        cluster = clusters[idx]
-        for each in cluster:
-          labels[each] = idx
-      svm_classifier.Fit (data=extracted_wave, label=labels)
+      summary_list.append (summary)
+
+    # TODO: This should come after all channels processed
+    # Lastly, classify the results with SVM
+    labels = [0] * len(wave_form)
+    for idx in range (3):
+      cluster = clusters[idx]
+      for each in cluster:
+        labels[each] = idx
+    svm_classifier.Fit (data=extracted_wave, label=labels)
 
   return 0
 
