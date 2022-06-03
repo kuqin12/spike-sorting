@@ -175,7 +175,6 @@ def main ():
           # c_sum = sum (extracted_wave[idx])
           # c_sum_sq = sum (np.square(extracted_wave[idx]))
           summary[idx] = (extracted_wave[[idx]])
-        print (summary)
         summary_list.append (summary)
         continue
 
@@ -236,12 +235,13 @@ def main ():
               break
             index -= 1
 
-          # Update the cluster summary after all calculations
+          # Update the clusters after all calculations
           if merge_idx is not None:
-            final_clusters[merge_idx] = (np.vstack((cluster_summary, cl_sum)), s_chn, channel)
+            (merge_cl, merge_s_chn, _) = final_clusters[merge_idx]
+            final_clusters[merge_idx] = (np.vstack((cluster_summary, merge_cl)), merge_s_chn, channel)
           else:
             final_clusters.append((cluster_summary, channel, channel))
-    logging.critical ("Done merging spikes. Total %d spikes and %d clusters!!!" % (total_spikes, len(final_clusters)))
+    logging.debug ("Done merging spikes. Total %d spikes and %d clusters!!!" % (total_spikes, len(final_clusters)))
 
     # Lastly, classify the results with SVM
     labels = [None] * total_spikes
@@ -253,12 +253,14 @@ def main ():
       else:
         all_waves = np.vstack((all_waves, each[0]))
       for _ in range(len(each[0])):
-        # labels[index] = idx
+        labels[index] = idx
         index += 1
     if index != total_spikes:
       raise Exception ("Something is off %d %d" % (index, total_spikes))
 
+    logging.critical ("Started SVM classification!!!")
     svm_classifier.Fit (data=all_waves, label=labels)
+    logging.critical ("Done SVM classification!!!")
 
   return 0
 
