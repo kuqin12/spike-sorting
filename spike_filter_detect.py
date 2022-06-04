@@ -35,7 +35,7 @@ def get_spikes(data, spike_window=80, tf=5, offset=10, max_thresh=350):
     pos = pos[pos > spike_window]
 
     # Extract potential spikes and align them to the maximum
-    spike_samp = []
+    spike_samp = np.array([-1])
     wave_form = np.empty([1, spike_window*2])
     for i in pos:
         if i < data.shape[0] - (spike_window+1):
@@ -56,6 +56,7 @@ def get_spikes(data, spike_window=80, tf=5, offset=10, max_thresh=350):
 
     # Remove duplicates
     ind = np.where(np.diff(spike_samp) > 1)[0]
+    spike_samp = spike_samp[ind]
     wave_form = wave_form[ind]
 
-    return wave_form
+    return wave_form[1:]
