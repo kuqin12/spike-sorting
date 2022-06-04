@@ -195,7 +195,7 @@ def main ():
 
     # Now that we have the list of labeled clusters, now we need to potentially merge the clusters in vicinity
     logging.critical ("Starting to merge cross channel, total %d spikes from %d clusters!!!" % (total_spikes, len(summary_list)))
-    final_clusters = merge_clusters (summary_list, similarity=1)
+    final_clusters = merge_clusters (summary_list, similarity=2)
     logging.critical ("Done merging spikes. Total %d clusters!!!" % (len(final_clusters)))
 
     # Lastly, classify the results with SVM
