@@ -189,9 +189,9 @@ def main ():
     all_waves, labels, n_thrown_spikes = filter_clusters(final_clusters, total_spikes)
     logging.critical ("Done filtering. Ended up %d clusters and threw away %d spikes!!!" % (len(np.unique(labels)), n_thrown_spikes))
 
-    logging.debug ("Started SVM classification!!!")
+    logging.critical ("Started SVM classification!!!")
     svm_classifier.Fit (data=all_waves, label=labels)
-    logging.debug ("Done SVM classification!!!")
+    logging.critical ("Done SVM classification!!!")
 
   return 0
 
