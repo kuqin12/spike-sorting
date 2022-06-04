@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pyparsing import alphas
 from pyspark.sql import *
-from scipy.stats import median_abs_deviation
 
 import spike_filter_detect as sp_fd
 
@@ -17,6 +16,7 @@ from spike_fe_mllib import SpikeFeatureExtractPCA_MLLib
 from spike_cluster_kmeans import SpikeClusterKMeans
 from spike_cluster_kmeans_mllib import SpikeClusterKMeans_MLLib
 from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
+from spike_cluster_merger import merge_clusters
 from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 from spike_cluster_gmm import SpikeClusterGMM
 
@@ -27,9 +27,8 @@ sys.path.append(path_root)
 
 SAMPLE_FREQ       = 30000
 
-VICINITY_CHANNEL      = 8
-SIMILARITY_THRESHOLD  = 3
-# MINIMAL_CLUSTER_PORT  = 0.005
+MAX_CLUSTER_PER_CHN   = 3
+MINIMAL_CLUSTER_PORT  = 0.005
 
 def FEFactory(InputString, context=None):
   if(InputString.lower() == "pca"):
@@ -102,20 +101,6 @@ def path_parse():
 
     return Paths
 
-def cluster_distance (clusters_m, clusters_n):
-  # The maths is from https://doi.org/10.7554/eLife.34518
-  alpha_m = np.mean(clusters_m, axis=0)
-  alpha_n = np.mean(clusters_n, axis=0)
-  dist = alpha_m - alpha_n
-  # print (dist.shape)
-  # print (clusters_m.shape)
-  # print (clusters_n.shape)
-  gamma_m = median_abs_deviation(np.dot(clusters_m, dist))
-  gamma_n = median_abs_deviation(np.dot(clusters_n, -dist))
-  zeta_m_n =  np.linalg.norm(dist) / np.sqrt(gamma_m * gamma_m + gamma_n * gamma_n)
-  # print (zeta_m_n)
-  return zeta_m_n
-
 def main ():
 
   # Parse required paths passed from cmd line arguments
@@ -134,7 +119,7 @@ def main ():
   # This is Kun's home brew implementation
   fe_model = FEFactory (Paths.FeatureExtraction, spark)
   cluster_model = ClusterFactory (Paths.ClusterMethod, spark)
-  svm_classifier = SpikeSVMClassifier(spark)
+  svm_classifier = SpikeSVMClassifier(spark, GD="BGD")
   start_time = 0
 
   with open (Paths.InputFile, 'rb') as input:
@@ -146,7 +131,9 @@ def main ():
 
     # TODO: Need to parallelize this
     summary_list = []
+    total_spikes = 0
     for chn in range (Paths.Channels):
+      logging.debug ("Progress: %.1f%%..." % (chn/Paths.Channels*100))
       sliced_data = raw_data_16[chn::Paths.Channels]
 
       spike_data = sp_fd.filter_data(sliced_data, low=300, high=6000, sf=SAMPLE_FREQ)
@@ -158,96 +145,58 @@ def main ():
       if len(wave_form) == 0:
         # no spike here, bail this channel for this interval
         logging.debug ("no spike here, bail this channel for this interval %d." % (chn + 1))
-        summary_list.append (None)
         continue
 
+      total_spikes += len(wave_form)
       # Now we are ready to cook. Start from feature extraction
       logging.debug ("Start to process %d waveforms with PCA." % len(wave_form))
       extracted_wave = fe_model.FE (wave_form)
 
       logging.debug ("Done processing PCA!!!")
 
-      if len(extracted_wave) <= 3:
+      if len(extracted_wave) <= MAX_CLUSTER_PER_CHN:
         # Less than cluster numbers, bail fast for this interval
         logging.debug ("Less than cluster numbers, bail fast for this interval %d." % (chn + 1))
-        summary = [None] * len(extracted_wave)
         for idx in range (len(extracted_wave)):
           # c_sum = sum (extracted_wave[idx])
           # c_sum_sq = sum (np.square(extracted_wave[idx]))
-          summary[idx] = (extracted_wave[[idx]])
-        summary_list.append (summary)
+          summary_list.append ((extracted_wave[[idx]], chn, chn))
         continue
 
       # start = time.time()
-      clusters = cluster_model.Cluster (extracted_wave, k=3)
+      clusters = cluster_model.Cluster (extracted_wave, k=MAX_CLUSTER_PER_CHN)
       # end = time.time()
       # logging.debug("The time of execution of above step is : %f" % (end-start))
       logging.debug ("Done clustering!!!")
 
-      # save the clusters by summary, so that they can still be in memory
-      summary = [None] * 3
-      for idx in range (3):
+      # Format the clusters
+      for idx in range (MAX_CLUSTER_PER_CHN):
         cluster = clusters[idx]
         logging.debug (cluster)
         # c_sum = sum (extracted_wave[cluster])
         # c_sum_sq = sum (np.square(extracted_wave[cluster]))
-        summary[idx] = (extracted_wave[cluster])
-
-      summary_list.append (summary)
+        summary_list.append ((extracted_wave[cluster], chn, chn))
 
     # Now that we have the list of labeled clusters, now we need to potentially merge the clusters in vicinity
-    logging.critical ("Starting to merge cross channel data!!!")
-    final_clusters = []
-    total_spikes = 0
-    for channel in range(VICINITY_CHANNEL, len(summary_list)):
-      # Here we process 4 overlapping tetrodes (each has 4 channels) at a time
-      channel_summary = summary_list[channel]
-      # when the channel did not collect any spikes
-      if channel_summary is None:
-        continue
-
-      for cluster_summary in channel_summary:
-        if cluster_summary is None:
-          continue
-
-        total_spikes += len(cluster_summary)
-        length = len(final_clusters)
-        if length == 0:
-          # create one cluster if it is empty
-          final_clusters.append ((cluster_summary, channel, channel))
-        else:
-          # search back to see how many final clusters are mergable with this one
-          index = length
-          merge_idx = None
-          min_cl_dist = -1
-          while index > 0:
-            (cl_sum, s_chn, _) = final_clusters[index - 1]
-            # making sure that the span of merged clusters will not exceed the range of 4 tetrodes
-            if channel - s_chn <= VICINITY_CHANNEL:
-              cl_dist = cluster_distance (cl_sum, cluster_summary)
-              if cl_dist < SIMILARITY_THRESHOLD:
-                # There is definitely going to be a merge
-                if merge_idx is None or min_cl_dist > cl_dist:
-                  merge_idx = index - 1
-                  min_cl_dist = cl_dist
-            else:
-              # Did not find anything to merge
-              break
-            index -= 1
-
-          # Update the clusters after all calculations
-          if merge_idx is not None:
-            (merge_cl, merge_s_chn, _) = final_clusters[merge_idx]
-            final_clusters[merge_idx] = (np.vstack((cluster_summary, merge_cl)), merge_s_chn, channel)
-          else:
-            final_clusters.append((cluster_summary, channel, channel))
-    logging.debug ("Done merging spikes. Total %d spikes and %d clusters!!!" % (total_spikes, len(final_clusters)))
+    logging.critical ("Starting to merge cross channel, total %d spikes!!!" % total_spikes)
+    final_clusters = merge_clusters (summary_list)
+    logging.critical ("Done merging spikes. Total %d clusters!!!" % (len(final_clusters)))
 
     # Lastly, classify the results with SVM
     labels = [None] * total_spikes
     all_waves = None
     index = 0
+    thrown_spikes = 0
+    kept_cluster = 0
     for idx, each in enumerate(final_clusters):
+      logging.debug ("Cluster %d has %d spikes between channel %d and %d" % (idx, len(each[0]), each[1], each[2]))
+      if len(each[0]) < MINIMAL_CLUSTER_PORT * total_spikes:
+        # This cluster will be throw away as a whole..
+        thrown_spikes += len(each[0])
+        for _ in range(len(each[0])):
+          labels.pop (-1)
+        continue
+
       if all_waves is None:
         all_waves = each[0]
       else:
@@ -255,12 +204,17 @@ def main ():
       for _ in range(len(each[0])):
         labels[index] = idx
         index += 1
-    if index != total_spikes:
-      raise Exception ("Something is off %d %d" % (index, total_spikes))
 
-    logging.critical ("Started SVM classification!!!")
+      kept_cluster += 1
+
+    if index + thrown_spikes != total_spikes:
+      raise Exception ("Something is off %d %d %d" % (index, thrown_spikes, total_spikes))
+
+    logging.critical ("Done cross channel merging and ended up %d clusters and threw away %d spikes!!!" % (kept_cluster, thrown_spikes))
+
+    logging.debug ("Started SVM classification!!!")
     svm_classifier.Fit (data=all_waves, label=labels)
-    logging.critical ("Done SVM classification!!!")
+    logging.debug ("Done SVM classification!!!")
 
   return 0
 
