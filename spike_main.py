@@ -20,8 +20,10 @@ from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
 from spike_cluster_polisher import merge_clusters, filter_clusters
 from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 from spike_cluster_gmm import SpikeClusterGMM
+from tsne import scatter
 
 from spike_svm import SpikeSVMClassifier
+
 
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
@@ -125,7 +127,7 @@ def main ():
     # Detect spike, the 2 factor is for the 16bit integer
     raw_data = input.read (Paths.Interval * SAMPLE_FREQ * Paths.Channels * 2)
 
-    raw_data_16 = np.frombuffer(raw_data, dtype=np.int16)
+    #raw_data_16 = np.frombuffer(raw_data, dtype=np.int16)
     timestamp = [(item / SAMPLE_FREQ) for item in range(start_time, start_time + SAMPLE_FREQ * Paths.Interval)]
 
     # TODO: Need to parallelize this
@@ -133,9 +135,9 @@ def main ():
     total_spikes = 0
     for chn in range (Paths.Channels):
       logging.critical ("Progress: %.1f%%..." % (chn/Paths.Channels*100))
-      sliced_data = raw_data_16[chn::Paths.Channels]
+      #sliced_data = raw_data_16[chn::Paths.Channels]
 
-      spike_data = sp_fd.filter_data(sliced_data, low=300, high=6000, sf=SAMPLE_FREQ)
+      #spike_data = sp_fd.filter_data(sliced_data, low=300, high=6000, sf=SAMPLE_FREQ)
       # plt.plot(timestamp, spike_data)
       # plt.suptitle('Channel %d' % (chn + 1))
       # plt.show ()
@@ -205,6 +207,8 @@ def main ():
     logging.critical ("Started SVM classification!!!")
     svm_classifier.Fit (data=all_waves, label=labels)
     logging.critical ("Done SVM classification!!!")
+
+    scatter(all_waves)
 
   return 0
 
