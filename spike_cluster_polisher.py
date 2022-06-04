@@ -77,3 +77,35 @@ def merge_clusters (summary_list, vicinity_chn=8, similarity=3, max_iter=8):
     logging.debug ("Round %d: %d clusters!!!" % (rounds, len(final_clusters)))
 
   return final_clusters
+
+# Make sure this is called after merging, otherwise we are throwing away more spikes
+def filter_clusters (final_clusters, total_spikes, minimal_support=0.005):
+
+  labels = [None] * total_spikes
+  all_waves = None
+  index = 0
+  thrown_spikes = 0
+  kept_cluster = 0
+  for idx, each in enumerate(final_clusters):
+    logging.debug ("Cluster %d has %d spikes between channel %d and %d" % (idx, len(each[0]), each[1], each[2]))
+    if len(each[0]) < minimal_support * total_spikes:
+      # This cluster will be throw away as a whole..
+      thrown_spikes += len(each[0])
+      for _ in range(len(each[0])):
+        labels.pop (-1)
+      continue
+
+    if all_waves is None:
+      all_waves = each[0]
+    else:
+      all_waves = np.vstack((all_waves, each[0]))
+    for _ in range(len(each[0])):
+      labels[index] = idx
+      index += 1
+
+    kept_cluster += 1
+
+  if index + thrown_spikes != total_spikes:
+    raise Exception ("Something is off %d %d %d" % (index, thrown_spikes, total_spikes))
+
+  return all_waves, labels, thrown_spikes

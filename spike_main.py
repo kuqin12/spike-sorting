@@ -16,7 +16,7 @@ from spike_fe_mllib import SpikeFeatureExtractPCA_MLLib
 from spike_cluster_kmeans import SpikeClusterKMeans
 from spike_cluster_kmeans_mllib import SpikeClusterKMeans_MLLib
 from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
-from spike_cluster_merger import merge_clusters
+from spike_cluster_polisher import merge_clusters, filter_clusters
 from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 from spike_cluster_gmm import SpikeClusterGMM
 
@@ -28,7 +28,6 @@ sys.path.append(path_root)
 SAMPLE_FREQ       = 30000
 
 MAX_CLUSTER_PER_CHN   = 3
-MINIMAL_CLUSTER_PORT  = 0.005
 
 def FEFactory(InputString, context=None):
   if(InputString.lower() == "pca"):
@@ -183,34 +182,8 @@ def main ():
     logging.critical ("Done merging spikes. Total %d clusters!!!" % (len(final_clusters)))
 
     # Lastly, classify the results with SVM
-    labels = [None] * total_spikes
-    all_waves = None
-    index = 0
-    thrown_spikes = 0
-    kept_cluster = 0
-    for idx, each in enumerate(final_clusters):
-      logging.debug ("Cluster %d has %d spikes between channel %d and %d" % (idx, len(each[0]), each[1], each[2]))
-      if len(each[0]) < MINIMAL_CLUSTER_PORT * total_spikes:
-        # This cluster will be throw away as a whole..
-        thrown_spikes += len(each[0])
-        for _ in range(len(each[0])):
-          labels.pop (-1)
-        continue
-
-      if all_waves is None:
-        all_waves = each[0]
-      else:
-        all_waves = np.vstack((all_waves, each[0]))
-      for _ in range(len(each[0])):
-        labels[index] = idx
-        index += 1
-
-      kept_cluster += 1
-
-    if index + thrown_spikes != total_spikes:
-      raise Exception ("Something is off %d %d %d" % (index, thrown_spikes, total_spikes))
-
-    logging.critical ("Done cross channel merging and ended up %d clusters and threw away %d spikes!!!" % (kept_cluster, thrown_spikes))
+    all_waves, labels, n_thrown_spikes = filter_clusters(final_clusters, total_spikes)
+    logging.critical ("Done filtering. Ended up %d clusters and threw away %d spikes!!!" % (len(np.unique(labels)), n_thrown_spikes))
 
     logging.debug ("Started SVM classification!!!")
     svm_classifier.Fit (data=all_waves, label=labels)
