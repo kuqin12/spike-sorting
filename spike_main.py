@@ -25,8 +25,7 @@ from spike_svm import SpikeSVMClassifier
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
 
-SAMPLE_FREQ       = 30000
-
+SAMPLE_FREQ = 30000
 MAX_CLUSTER_PER_CHN   = 3
 
 def FEFactory(InputString, context=None):
@@ -106,14 +105,13 @@ def main ():
   Paths = path_parse()
 
   # create the Spark Session
-  # spark = SparkSession.builder.getOrCreate()
-  spark = None
+  spark = SparkSession.builder.getOrCreate()
 
-  # # create the Spark Context
-  # sc = spark.sparkContext
+  # create the Spark Context
+  sc = spark.sparkContext
 
-  # # Mute the informational level logs
-  # sc.setLogLevel("WARN")
+  # Mute the informational level logs
+  sc.setLogLevel("WARN")
 
   # This is Kun's home brew implementation
   fe_model = FEFactory (Paths.FeatureExtraction, spark)
