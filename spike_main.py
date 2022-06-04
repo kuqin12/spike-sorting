@@ -5,6 +5,7 @@ import sys
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+from math import ceil
 from pyparsing import alphas
 from pyspark.sql import *
 
@@ -26,7 +27,8 @@ path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
 
 SAMPLE_FREQ = 30000
-MAX_CLUSTER_PER_CHN   = 3
+MAX_CLUSTER_PER_CHN   = 10
+MIN_CLUSTER_PER_CHN   = 3
 
 def FEFactory(InputString, context=None):
   if(InputString.lower() == "pca"):
@@ -130,7 +132,7 @@ def main ():
     summary_list = []
     total_spikes = 0
     for chn in range (Paths.Channels):
-      logging.debug ("Progress: %.1f%%..." % (chn/Paths.Channels*100))
+      logging.critical ("Progress: %.1f%%..." % (chn/Paths.Channels*100))
       sliced_data = raw_data_16[chn::Paths.Channels]
 
       spike_data = sp_fd.filter_data(sliced_data, low=300, high=6000, sf=SAMPLE_FREQ)
@@ -148,6 +150,12 @@ def main ():
         # TODO: This is not right, but different reduction should remove it
         continue
 
+      # TODO: This should not be needed with curated data
+      min_vals = np.min(wave_form, axis=1)
+      wave_form = wave_form + min_vals[:, None]
+      max_val = np.max(wave_form, axis=1)
+      wave_form = wave_form / max_val[:, None]
+
       total_spikes += len(wave_form)
       # Now we are ready to cook. Start from feature extraction
       logging.debug ("Start to process %d waveforms with PCA." % len(wave_form))
@@ -155,7 +163,7 @@ def main ():
 
       logging.debug ("Done processing PCA!!!")
 
-      if len(extracted_wave) <= MAX_CLUSTER_PER_CHN:
+      if len(extracted_wave) <= MIN_CLUSTER_PER_CHN:
         # Less than cluster numbers, bail fast for this interval
         logging.debug ("Less than cluster numbers, bail fast for this interval %d." % (chn + 1))
         for idx in range (len(extracted_wave)):
@@ -164,14 +172,19 @@ def main ():
           summary_list.append ((extracted_wave[[idx]], chn, chn))
         continue
 
+      n_cluster = int(ceil(len(extracted_wave) / 100))
+      if n_cluster < MIN_CLUSTER_PER_CHN:
+        n_cluster = MIN_CLUSTER_PER_CHN
+      elif n_cluster > MAX_CLUSTER_PER_CHN:
+        n_cluster = MAX_CLUSTER_PER_CHN
       # start = time.time()
-      clusters = cluster_model.Cluster (extracted_wave, k=MAX_CLUSTER_PER_CHN)
+      clusters = cluster_model.Cluster (extracted_wave, k=n_cluster)
       # end = time.time()
       # logging.debug("The time of execution of above step is : %f" % (end-start))
       logging.debug ("Done clustering!!!")
 
       # Format the clusters
-      for idx in range (MAX_CLUSTER_PER_CHN):
+      for idx in range (n_cluster):
         cluster = clusters[idx]
         logging.debug (cluster)
         if len(cluster) == 0:
@@ -182,7 +195,7 @@ def main ():
 
     # Now that we have the list of labeled clusters, now we need to potentially merge the clusters in vicinity
     logging.critical ("Starting to merge cross channel, total %d spikes from %d clusters!!!" % (total_spikes, len(summary_list)))
-    final_clusters = merge_clusters (summary_list, similarity=0.02)
+    final_clusters = merge_clusters (summary_list, similarity=1)
     logging.critical ("Done merging spikes. Total %d clusters!!!" % (len(final_clusters)))
 
     # Lastly, classify the results with SVM
