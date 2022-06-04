@@ -144,6 +144,10 @@ def main ():
         logging.debug ("no spike here, bail this channel for this interval %d." % (chn + 1))
         continue
 
+      if (len(wave_form) == 1):
+        # TODO: This is not right, but different reduction should remove it
+        continue
+
       total_spikes += len(wave_form)
       # Now we are ready to cook. Start from feature extraction
       logging.debug ("Start to process %d waveforms with PCA." % len(wave_form))
@@ -170,13 +174,15 @@ def main ():
       for idx in range (MAX_CLUSTER_PER_CHN):
         cluster = clusters[idx]
         logging.debug (cluster)
+        if len(cluster) == 0:
+          continue
         # c_sum = sum (extracted_wave[cluster])
         # c_sum_sq = sum (np.square(extracted_wave[cluster]))
         summary_list.append ((extracted_wave[cluster], chn, chn))
 
     # Now that we have the list of labeled clusters, now we need to potentially merge the clusters in vicinity
-    logging.critical ("Starting to merge cross channel, total %d spikes!!!" % total_spikes)
-    final_clusters = merge_clusters (summary_list)
+    logging.critical ("Starting to merge cross channel, total %d spikes from %d clusters!!!" % (total_spikes, len(summary_list)))
+    final_clusters = merge_clusters (summary_list, similarity=0.02)
     logging.critical ("Done merging spikes. Total %d clusters!!!" % (len(final_clusters)))
 
     # Lastly, classify the results with SVM
