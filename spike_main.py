@@ -9,6 +9,7 @@ from math import ceil
 from pyparsing import alphas
 from pyspark.sql import *
 
+from generate_data import get_sample_spikes
 import spike_filter_detect as sp_fd
 
 from spike_fe import SpikeFeatureExtractPCA
@@ -106,14 +107,15 @@ def main ():
   # Parse required paths passed from cmd line arguments
   Paths = path_parse()
 
-  # create the Spark Session
-  spark = SparkSession.builder.getOrCreate()
+  # # create the Spark Session
+  # spark = SparkSession.builder.getOrCreate()
+  spark = None
 
-  # create the Spark Context
-  sc = spark.sparkContext
+  # # create the Spark Context
+  # sc = spark.sparkContext
 
-  # Mute the informational level logs
-  sc.setLogLevel("WARN")
+  # # Mute the informational level logs
+  # sc.setLogLevel("WARN")
 
   # This is Kun's home brew implementation
   fe_model = FEFactory (Paths.FeatureExtraction, spark)
@@ -140,22 +142,23 @@ def main ():
       # plt.suptitle('Channel %d' % (chn + 1))
       # plt.show ()
 
-      wave_form = sp_fd.get_spikes(spike_data, spike_window=50, tf=8, offset=20, max_thresh=1000)
-      if len(wave_form) == 0:
-        # no spike here, bail this channel for this interval
-        logging.debug ("no spike here, bail this channel for this interval %d." % (chn + 1))
-        continue
+      # wave_form = sp_fd.get_spikes(spike_data, spike_window=50, tf=8, offset=20, max_thresh=1000)
+      # if len(wave_form) == 0:
+      #   # no spike here, bail this channel for this interval
+      #   logging.debug ("no spike here, bail this channel for this interval %d." % (chn + 1))
+      #   continue
 
-      if (len(wave_form) == 1):
-        # TODO: This is not right, but different reduction should remove it
-        continue
+      # if (len(wave_form) == 1):
+      #   # TODO: This is not right, but different reduction should remove it
+      #   continue
 
-      # TODO: This should not be needed with curated data
-      min_vals = np.min(wave_form, axis=1)
-      wave_form = wave_form + min_vals[:, None]
-      max_val = np.max(wave_form, axis=1)
-      wave_form = wave_form / max_val[:, None]
+      # # TODO: This should not be needed with curated data
+      # min_vals = np.min(wave_form, axis=1)
+      # wave_form = wave_form + min_vals[:, None]
+      # max_val = np.max(wave_form, axis=1)
+      # wave_form = wave_form / max_val[:, None]
 
+      wave_form = get_sample_spikes ()
       total_spikes += len(wave_form)
       # Now we are ready to cook. Start from feature extraction
       logging.debug ("Start to process %d waveforms with PCA." % len(wave_form))
