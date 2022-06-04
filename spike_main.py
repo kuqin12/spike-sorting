@@ -5,6 +5,7 @@ import sys
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+from math import ceil
 from pyparsing import alphas
 from pyspark.sql import *
 
@@ -16,6 +17,7 @@ from spike_fe_mllib import SpikeFeatureExtractPCA_MLLib
 from spike_cluster_kmeans import SpikeClusterKMeans
 from spike_cluster_kmeans_mllib import SpikeClusterKMeans_MLLib
 from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
+from spike_cluster_polisher import merge_clusters, filter_clusters
 from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 from spike_cluster_gmm import SpikeClusterGMM
 
@@ -25,6 +27,8 @@ path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
 
 SAMPLE_FREQ = 30000
+MAX_CLUSTER_PER_CHN   = 10
+MIN_CLUSTER_PER_CHN   = 3
 
 def FEFactory(InputString, context=None):
   if(InputString.lower() == "pca"):
@@ -114,7 +118,7 @@ def main ():
   # This is Kun's home brew implementation
   fe_model = FEFactory (Paths.FeatureExtraction, spark)
   cluster_model = ClusterFactory (Paths.ClusterMethod, spark)
-  svm_classifier = SpikeSVMClassifier(spark)
+  svm_classifier = SpikeSVMClassifier(spark, GD="BGD")
   start_time = 0
 
   with open (Paths.InputFile, 'rb') as input:
@@ -125,7 +129,10 @@ def main ():
     timestamp = [(item / SAMPLE_FREQ) for item in range(start_time, start_time + SAMPLE_FREQ * Paths.Interval)]
 
     # TODO: Need to parallelize this
+    summary_list = []
+    total_spikes = 0
     for chn in range (Paths.Channels):
+      logging.critical ("Progress: %.1f%%..." % (chn/Paths.Channels*100))
       sliced_data = raw_data_16[chn::Paths.Channels]
 
       spike_data = sp_fd.filter_data(sliced_data, low=300, high=6000, sf=SAMPLE_FREQ)
@@ -136,37 +143,68 @@ def main ():
       wave_form = sp_fd.get_spikes(spike_data, spike_window=50, tf=8, offset=20, max_thresh=1000)
       if len(wave_form) == 0:
         # no spike here, bail this channel for this interval
-        logging.critical ("no spike here, bail this channel for this interval %d." % (chn + 1))
+        logging.debug ("no spike here, bail this channel for this interval %d." % (chn + 1))
         continue
 
-      if len(wave_form) <= 3:
-        # Less than cluster numbers, bail fast for this interval
-        logging.critical ("Less than cluster numbers, bail fast for this interval %d." % (chn + 1))
+      if (len(wave_form) == 1):
+        # TODO: This is not right, but different reduction should remove it
         continue
 
+      # TODO: This should not be needed with curated data
+      min_vals = np.min(wave_form, axis=1)
+      wave_form = wave_form + min_vals[:, None]
+      max_val = np.max(wave_form, axis=1)
+      wave_form = wave_form / max_val[:, None]
+
+      total_spikes += len(wave_form)
       # Now we are ready to cook. Start from feature extraction
-      logging.critical ("Start to process %d waveforms with PCA." % len(wave_form))
+      logging.debug ("Start to process %d waveforms with PCA." % len(wave_form))
       extracted_wave = fe_model.FE (wave_form)
 
-      logging.critical ("Done processing PCA!!!")
+      logging.debug ("Done processing PCA!!!")
 
+      if len(extracted_wave) <= MIN_CLUSTER_PER_CHN:
+        # Less than cluster numbers, bail fast for this interval
+        logging.debug ("Less than cluster numbers, bail fast for this interval %d." % (chn + 1))
+        for idx in range (len(extracted_wave)):
+          # c_sum = sum (extracted_wave[idx])
+          # c_sum_sq = sum (np.square(extracted_wave[idx]))
+          summary_list.append ((extracted_wave[[idx]], chn, chn))
+        continue
+
+      n_cluster = int(ceil(len(extracted_wave) / 100))
+      if n_cluster < MIN_CLUSTER_PER_CHN:
+        n_cluster = MIN_CLUSTER_PER_CHN
+      elif n_cluster > MAX_CLUSTER_PER_CHN:
+        n_cluster = MAX_CLUSTER_PER_CHN
       # start = time.time()
-      clusters = cluster_model.Cluster (extracted_wave, k=3)
+      clusters = cluster_model.Cluster (extracted_wave, k=n_cluster)
       # end = time.time()
-      # logging.critical("The time of execution of above step is : %f" % (end-start))
-      logging.critical ("Done clustering!!!")
-      for idx in range (3):
-        cluster = clusters[idx]
-        logging.critical (cluster)
+      # logging.debug("The time of execution of above step is : %f" % (end-start))
+      logging.debug ("Done clustering!!!")
 
-      # TODO: This should come after all channels processed
-      # Lastly, classify the results with SVM
-      labels = [0] * len(wave_form)
-      for idx in range (3):
+      # Format the clusters
+      for idx in range (n_cluster):
         cluster = clusters[idx]
-        for each in cluster:
-          labels[each] = idx
-      svm_classifier.Fit (data=extracted_wave, label=labels)
+        logging.debug (cluster)
+        if len(cluster) == 0:
+          continue
+        # c_sum = sum (extracted_wave[cluster])
+        # c_sum_sq = sum (np.square(extracted_wave[cluster]))
+        summary_list.append ((extracted_wave[cluster], chn, chn))
+
+    # Now that we have the list of labeled clusters, now we need to potentially merge the clusters in vicinity
+    logging.critical ("Starting to merge cross channel, total %d spikes from %d clusters!!!" % (total_spikes, len(summary_list)))
+    final_clusters = merge_clusters (summary_list, similarity=1)
+    logging.critical ("Done merging spikes. Total %d clusters!!!" % (len(final_clusters)))
+
+    # Lastly, classify the results with SVM
+    all_waves, labels, n_thrown_spikes = filter_clusters(final_clusters, total_spikes)
+    logging.critical ("Done filtering. Ended up %d clusters and threw away %d spikes!!!" % (len(np.unique(labels)), n_thrown_spikes))
+
+    logging.critical ("Started SVM classification!!!")
+    svm_classifier.Fit (data=all_waves, label=labels)
+    logging.critical ("Done SVM classification!!!")
 
   return 0
 
