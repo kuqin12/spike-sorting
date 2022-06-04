@@ -56,18 +56,41 @@ class SpikeClusterKMeans(SpikeClustering):
         min_dist = measure
     return (new_cluster, (ret, 1))
 
+  @staticmethod
+  def far_init(waveforms, k):
+
+    # Randomly pick the first centroid
+    centroids = [random.choice(waveforms)]
+
+    # from https://stackoverflow.com/questions/5466323/how-could-one-implement-the-k-means-algorithm
+    for _ in range(k-1):
+        dist_sq = np.array([min([np.inner(c-x,c-x) for c in centroids]) for x in waveforms])
+        probs = dist_sq/dist_sq.sum()
+        cumulative_probs = probs.cumsum()
+        r = np.random.rand()
+
+        for j, p in enumerate(cumulative_probs):
+            if r < p:
+                i = j
+                break
+
+        centroids.append(waveforms[i])
+
+    return centroids
+
   # Implement k-means
-  def Cluster(self, waveforms, k=3, max_iter=20):
+  def Cluster(self, waveforms, k=3, max_iter=20, init='kpp'):
 
-    # for initialization, we randomly select k centroids
-    centroids = [None] * k
-    for idx in range (k):
-      centroids[idx] = random.choice(waveforms)
-
-    std = [0] * k
+    if init == 'kpp':
+      # for initialization, we randomly select k centroids
+      centroids = SpikeClusterKMeans.far_init(waveforms=waveforms, k=k)
+    else:
+      centroids = [None] * k
+      for idx in range (k):
+        centroids[idx] = random.choice(waveforms)
 
     # 3: for iteration := 1 to MAX ITER do
-    for round in range (0, max_iter + 1):
+    for _ in range (0, max_iter + 1):
       clusters = [ [] for _ in range(k) ]
       # 4: for each point x in the dataset do
       # 5: Cluster of x ← the cluster with the closest centroid to x
