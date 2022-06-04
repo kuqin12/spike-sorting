@@ -24,6 +24,15 @@ def cluster_distance (clusters_m, clusters_n):
   # print (zeta_m_n)
   return zeta_m_n
 
+def cluster_e_distance (clusters_m, clusters_n):
+  # This distance calculation is just euclidean distance between 2 centroids.
+  alpha_m = np.mean(clusters_m, axis=0)
+  alpha_n = np.mean(clusters_n, axis=0)
+  dist = alpha_m - alpha_n
+  zeta_m_n =  np.linalg.norm(dist)
+  # print (zeta_m_n)
+  return zeta_m_n
+
 def merge_clusters (summary_list, vicinity_chn=8, similarity=3, max_iter=8):
 
   rounds = 0
@@ -54,7 +63,7 @@ def merge_clusters (summary_list, vicinity_chn=8, similarity=3, max_iter=8):
         (cl_sum, s_chn, _) = final_clusters[index - 1]
         # making sure that the span of merged clusters will not exceed the range of 4 tetrodes
         if end_channel - s_chn <= vicinity_chn:
-          cl_dist = cluster_distance (cl_sum, cluster_inst)
+          cl_dist = cluster_e_distance (cl_sum, cluster_inst)
           if cl_dist < similarity:
             # There is definitely going to be a merge
             if merge_idx is None or min_cl_dist > cl_dist:
