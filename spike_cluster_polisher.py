@@ -5,15 +5,15 @@ import random
 from pyspark.sql import *
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import functions as F
-from math import sqrt
+from math import nan, inf
 from spike_cluster_type import SpikeClustering
 from scipy.stats import median_abs_deviation
 
 
 def cluster_distance (clusters_m, clusters_n):
   # The maths is from https://doi.org/10.7554/eLife.34518
-  alpha_m = np.mean(clusters_m, axis=0)
-  alpha_n = np.mean(clusters_n, axis=0)
+  alpha_m = np.median(clusters_m, axis=0)
+  alpha_n = np.median(clusters_n, axis=0)
   dist = alpha_m - alpha_n
   # print (dist.shape)
   # print (clusters_m.shape)
