@@ -99,7 +99,7 @@ class SpikeGenerator():
     spikes = []
 
     def __init__(self):
-
+        self.spikes = []
         self.basis = [    
             SpikeTemplate(B_upper, B_lower), 
             SpikeTemplate(P_upper, P_lower),
