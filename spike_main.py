@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from math import ceil
 from pyparsing import alphas
 from pyspark.sql import *
+import matplotlib.cm as cm
 
 # from generate_data import get_sample_spikes
 from repro_DCAE_data import get_sample_spikes
@@ -227,6 +228,21 @@ def main ():
     logging.critical ("Done SVM classification!!!")
 
     scatter(all_waves, labels)
+
+    # Consume trained SVMs
+    new_spikes = get_sample_spikes ()
+    new_labels = []
+    for each in new_spikes:
+      res = svm_classifier.Predict (each)
+      new_labels.append(res)
+
+    cmap = cm.get_cmap('Set1')
+    for l in np.unique(new_labels):
+      i = np.where(new_labels == l)
+      labeled_waves = np.array(new_spikes)[i]
+      for each in labeled_waves:
+        plt.plot(each, c = cmap(l))
+    plt.show()
 
   return 0
 
