@@ -114,9 +114,9 @@ def filter_clusters (final_clusters, total_spikes, minimal_support=0.005):
       continue
 
     if all_waves is None:
-      all_waves = each[3]
+      all_waves = each[0]
     else:
-      all_waves = np.vstack((all_waves, each[3]))
+      all_waves = np.vstack((all_waves, each[0]))
     for _ in range(len(each[0])):
       labels[index] = idx
       index += 1

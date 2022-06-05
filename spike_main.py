@@ -238,7 +238,13 @@ def main ():
       new_spikes = get_sample_spikes ()
       new_labels = []
       start = time.time()
-      for each in new_spikes:
+      input_waves = np.array(wave_form)
+      wave_dim = input_waves.shape[1]
+      hidden_layers = [25, 10]
+      autoencoder = get_model(input_waves, wave_dim, hidden_layers, epochs=500, batch_size=10)
+      encoder = get_encoder(autoencoder, wave_dim, len(hidden_layers))
+      extracted_wave = encoder.predict(input_waves)
+      for each in extracted_wave:
         res = svm_classifier.Predict (each)
         new_labels.append(res)
       end = time.time()
