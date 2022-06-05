@@ -178,7 +178,7 @@ def main ():
       input_waves = np.array(wave_form)
       wave_dim = input_waves.shape[1]
       hidden_layers = [25, 10]
-      autoencoder = get_model(input_waves, wave_dim, hidden_layers, epochs=500, batch_size=1)
+      autoencoder = get_model(input_waves, wave_dim, hidden_layers, epochs=500, batch_size=10)
       encoder = get_encoder(autoencoder, wave_dim, len(hidden_layers))
       extracted_wave = encoder.predict(input_waves)
       logging.debug ("Done processing DCAE!!!")
