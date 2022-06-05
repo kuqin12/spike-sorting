@@ -9,7 +9,8 @@ from math import ceil
 from pyparsing import alphas
 from pyspark.sql import *
 
-from generate_data import get_sample_spikes
+# from generate_data import get_sample_spikes
+from repro_DCAE_data import get_sample_spikes
 import spike_filter_detect as sp_fd
 
 from spike_fe import SpikeFeatureExtractPCA
@@ -24,7 +25,7 @@ from spike_cluster_gmm import SpikeClusterGMM
 from tsne import scatter
 
 from spike_svm import SpikeSVMClassifier
-
+from deep_contractive_autoencoder import get_model, get_encoder
 
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
@@ -163,10 +164,24 @@ def main ():
       wave_form = get_sample_spikes ()
       total_spikes += len(wave_form)
       # Now we are ready to cook. Start from feature extraction
-      logging.debug ("Start to process %d waveforms with PCA." % len(wave_form))
-      extracted_wave = fe_model.FE (wave_form)
+      ########
+      # PCA
+      ########
+      # logging.debug ("Start to process %d waveforms with PCA." % len(wave_form))
+      # extracted_wave = fe_model.FE (wave_form)
+      # logging.debug ("Done processing PCA!!!")
 
-      logging.debug ("Done processing PCA!!!")
+      ########
+      # DCAE
+      ########
+      logging.debug ("Start to process %d waveforms with DCAE." % len(wave_form))
+      input_waves = np.array(wave_form)
+      wave_dim = input_waves.shape[1]
+      hidden_layers = [25, 10]
+      autoencoder = get_model(input_waves, wave_dim, hidden_layers, epochs=500, batch_size=1)
+      encoder = get_encoder(autoencoder, wave_dim, len(hidden_layers))
+      extracted_wave = encoder.predict(input_waves)
+      logging.debug ("Done processing DCAE!!!")
 
       if len(extracted_wave) <= MIN_CLUSTER_PER_CHN:
         # Less than cluster numbers, bail fast for this interval

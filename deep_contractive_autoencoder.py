@@ -6,7 +6,8 @@ import keras.backend as K
 from keras_dense_transpose import DenseTranspose
 from keras_dense_tied import DenseTied
 
-import numpy as np
+from tensorflow.python.framework.ops import disable_eager_execution
+disable_eager_execution()
 
 # pass the input data and specify the hidden_layers in the mode
 # hidden_layers should be an array of hidden layer dimensions e.g., [layer1_dim, layer2_dim]
