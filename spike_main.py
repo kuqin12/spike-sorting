@@ -221,7 +221,6 @@ def main ():
       res = svm_classifier.Predict (each)
       new_labels.append(res)
 
-    print(new_labels)
     cmap = cm.get_cmap('Set1')
     for l in np.unique(new_labels):
       i = np.where(new_labels == l)
