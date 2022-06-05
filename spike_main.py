@@ -20,8 +20,10 @@ from spike_cluster_kmeans_skl import SpikeClusterKmeans_SKL
 from spike_cluster_polisher import merge_clusters, filter_clusters
 from spike_cluster_gmm_skl import SpikeClusterGMM_SKL
 from spike_cluster_gmm import SpikeClusterGMM
+from tsne import scatter
 
 from spike_svm import SpikeSVMClassifier
+
 
 path_root = os.path.dirname(__file__)
 sys.path.append(path_root)
@@ -205,6 +207,8 @@ def main ():
     logging.critical ("Started SVM classification!!!")
     svm_classifier.Fit (data=all_waves, label=labels)
     logging.critical ("Done SVM classification!!!")
+
+    scatter(all_waves, labels)
 
   return 0
 
