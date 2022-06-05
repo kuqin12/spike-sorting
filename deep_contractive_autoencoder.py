@@ -68,7 +68,7 @@ def get_model(input_data, input_dim, hidden_layers, lam=1e-4, epochs=1, batch_si
                     layer.set_weights(weights_cache[layer.name])
         print(model.summary())
         model.compile(optimizer='adam', loss=contractive_loss)
-        model.fit(input_data, input_data, batch_size=batch_size, epochs=epochs)
+        model.fit(input_data, input_data, batch_size=batch_size, epochs=epochs, verbose=0)
         # cache the trained weights
         for layer in model.layers:
             if 'encoder' in layer.name or 'decoder' in layer.name:
