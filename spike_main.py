@@ -200,6 +200,7 @@ def main ():
         n_cluster = MIN_CLUSTER_PER_CHN
       elif n_cluster > MAX_CLUSTER_PER_CHN:
         n_cluster = MAX_CLUSTER_PER_CHN
+      n_cluster = 6
       # start = time.time()
       clusters = cluster_model.Cluster (extracted_wave, k=n_cluster)
       # end = time.time()
@@ -232,19 +233,41 @@ def main ():
     scatter(all_waves, labels)
 
     # Consume trained SVMs
-    new_spikes = get_sample_spikes ()
-    new_labels = []
-    for each in new_spikes:
-      res = svm_classifier.Predict (each)
-      new_labels.append(res)
+    total = 0
+    for sample_index in range(10):
+      new_spikes = get_sample_spikes ()
+      new_labels = []
+      start = time.time()
+      for each in new_spikes:
+        res = svm_classifier.Predict (each)
+        new_labels.append(res)
+      end = time.time()
+      logging.critical("The time of prediction is : %f" % (end-start))
 
-    cmap = cm.get_cmap('Set1')
-    for l in np.unique(new_labels):
-      i = np.where(new_labels == l)
-      labeled_waves = np.array(new_spikes)[i]
-      for each in labeled_waves:
-        plt.plot(each, c = cmap(l))
-    plt.show()
+      print(new_labels)
+      unique, counts = np.unique(np.array(new_labels), return_counts=True)
+      err = 0
+      for idx in range(6):
+        if idx < len(counts):
+          err += abs(counts[idx] - 20)
+        else:
+          # an entire cluster missing.
+          err += 20
+      err = err / 2 / 120
+      total += err
+      print ("error is %f(percent)" % (err * 100))
+      cmap = cm.get_cmap('Set1')
+      plt.xlabel('Voltage Sample')
+      plt.ylabel('Amplitude [a.u.]')
+      plt.suptitle('Predicted Spike Waveforms')
+      for l in np.unique(new_labels):
+        i = np.where(new_labels == l)
+        labeled_waves = np.array(new_spikes)[i]
+        for each in labeled_waves:
+          plt.plot(each, c = cmap(l))
+      plt.savefig("predict_%d.png" % sample_index)
+    total /= 10
+    print (total)
 
   return 0
 

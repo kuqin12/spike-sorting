@@ -38,6 +38,14 @@ def merge_clusters (summary_list, vicinity_chn=8, similarity=3, max_iter=8):
   rounds = 0
   last_length = 0
 
+  # for i in range(len(summary_list)):
+  #   c_i, s_i, e_i, _ = summary_list[i]
+  #   for j in range(len(summary_list)):
+  #     c_j, s_j, e_j, _ = summary_list[j]
+  #     e_dist = cluster_e_distance (c_i, c_j)
+  #     m_dist = cluster_distance (c_i, c_j)
+  #     print ("distance between %d(chn%d) and %d(chn%d) is m:%f and e:%f" % (i, s_i, j, s_j, m_dist, e_dist))
+
   # Stop iteration either it reaches maximal rounds or saturated
   while rounds < max_iter and (len(summary_list) != last_length):
 
