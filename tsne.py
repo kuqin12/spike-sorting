@@ -20,7 +20,7 @@ def scatter(waves, labels, classifier):
                 sample = np.zeros(10)
                 sample[j] = 1
                 sample[k] = (-b-w[j])/w[k]
-                labels.append (-each)
+                labels.append (-each-1)
                 boundary_waves.append (sample)
 
     waves = np.vstack((waves, boundary_waves))
