@@ -48,6 +48,7 @@ def merge_clusters (summary_list, vicinity_chn=8, similarity=3, max_iter=8):
       cluster_summary = summary_list[idx]
       cluster_inst = cluster_summary[0]
       end_channel = cluster_summary[2]
+      waves = cluster_summary[3]
 
       length = len(final_clusters)
       if length == 0:
@@ -60,7 +61,7 @@ def merge_clusters (summary_list, vicinity_chn=8, similarity=3, max_iter=8):
       merge_idx = None
       min_cl_dist = -1
       while index > 0:
-        (cl_sum, s_chn, _) = final_clusters[index - 1]
+        (cl_sum, s_chn, _, _) = final_clusters[index - 1]
         # making sure that the span of merged clusters will not exceed the range of 4 tetrodes
         if end_channel - s_chn <= vicinity_chn:
           cl_dist = cluster_e_distance (cl_sum, cluster_inst)
@@ -76,8 +77,8 @@ def merge_clusters (summary_list, vicinity_chn=8, similarity=3, max_iter=8):
 
       # Update the clusters after all calculations
       if merge_idx is not None:
-        (merge_cl, merge_s_chn, _) = final_clusters[merge_idx]
-        final_clusters[merge_idx] = (np.vstack((cluster_inst, merge_cl)), merge_s_chn, end_channel)
+        (merge_cl, merge_s_chn, _, merge_waves) = final_clusters[merge_idx]
+        final_clusters[merge_idx] = (np.vstack((cluster_inst, merge_cl)), merge_s_chn, end_channel, np.vstack((waves, merge_waves)))
       else:
         final_clusters.append(cluster_summary)
 
@@ -105,9 +106,9 @@ def filter_clusters (final_clusters, total_spikes, minimal_support=0.005):
       continue
 
     if all_waves is None:
-      all_waves = each[0]
+      all_waves = each[3]
     else:
-      all_waves = np.vstack((all_waves, each[0]))
+      all_waves = np.vstack((all_waves, each[3]))
     for _ in range(len(each[0])):
       labels[index] = idx
       index += 1

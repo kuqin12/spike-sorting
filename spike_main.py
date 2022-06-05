@@ -174,7 +174,7 @@ def main ():
         for idx in range (len(extracted_wave)):
           # c_sum = sum (extracted_wave[idx])
           # c_sum_sq = sum (np.square(extracted_wave[idx]))
-          summary_list.append ((extracted_wave[[idx]], chn, chn))
+          summary_list.append ((extracted_wave[[idx]], chn, chn, np.array(wave_form)[[idx]]))
         continue
 
       n_cluster = int(ceil(len(extracted_wave) / 100))
@@ -196,7 +196,7 @@ def main ():
           continue
         # c_sum = sum (extracted_wave[cluster])
         # c_sum_sq = sum (np.square(extracted_wave[cluster]))
-        summary_list.append ((extracted_wave[cluster], chn, chn))
+        summary_list.append ((extracted_wave[cluster], chn, chn, np.array(wave_form)[cluster]))
 
     # Now that we have the list of labeled clusters, now we need to potentially merge the clusters in vicinity
     logging.critical ("Starting to merge cross channel, total %d spikes from %d clusters!!!" % (total_spikes, len(summary_list)))
