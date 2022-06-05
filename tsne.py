@@ -20,15 +20,12 @@ def scatter(waves, labels, classifier):
                 sample = np.zeros(10)
                 sample[j] = 1
                 sample[k] = (-b-w[j])/w[k]
+                labels.append (-each)
                 boundary_waves.append (sample)
 
     waves = np.vstack((waves, boundary_waves))
-    labels += [-1] * len(boundary_waves)
     waveforms_embedded = model.fit_transform(waves)
 
-    print (len(boundary_waves))
-    print (waveforms_embedded.shape)
-    print (waves.shape)
     x_max = np.max(waveforms_embedded.T[0][:-len(boundary_waves)], axis=0)
     y_max = np.max(waveforms_embedded.T[1][:-len(boundary_waves)], axis=0)
     x_min = np.min(waveforms_embedded.T[0][:-len(boundary_waves)], axis=0)
