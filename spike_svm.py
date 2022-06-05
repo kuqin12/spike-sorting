@@ -134,6 +134,9 @@ class SpikeSVMClassifier (object):
       if self.converge (ret_arr, delta_loss, self.epsilon):
         break
 
+      if t % 50 == 0:
+        logging.debug ("Loss for %d iteration %f" % (t, loss))
+
       t += 1
 
     # done_time = time.time()
@@ -149,7 +152,9 @@ class SpikeSVMClassifier (object):
     for each in unique_label:
       # specifically binarize the label
       temp_label = np.array([1 if i == each else -1 for i in label])
+      logging.critical ("SVM classification for %d" % each)
       w_each, b_each = self.SVM(data, temp_label)
+      logging.critical ("SVM classification done!!!")
       self.svms [each] = (w_each, b_each)
 
   def Predict(self, sample):
