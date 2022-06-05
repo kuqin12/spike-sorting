@@ -86,7 +86,7 @@ def merge_clusters (summary_list, vicinity_chn=8, similarity=3, max_iter=8):
     rounds += 1
     logging.debug ("Round %d: %d clusters!!!" % (rounds, len(final_clusters)))
 
-  return final_clusters
+  return summary_list
 
 # Make sure this is called after merging, otherwise we are throwing away more spikes
 def filter_clusters (final_clusters, total_spikes, minimal_support=0.005):
