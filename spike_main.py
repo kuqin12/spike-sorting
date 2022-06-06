@@ -229,7 +229,7 @@ def main ():
     svm_classifier.Fit (data=all_waves, label=labels)
     logging.critical ("Done SVM classification!!!")
 
-    scatter(all_waves, labels)
+    scatter(all_waves, labels, svm_classifier)
 
     # Consume trained SVMs
     new_spikes = get_sample_spikes ()
