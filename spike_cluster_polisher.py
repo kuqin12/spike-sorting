@@ -93,6 +93,7 @@ def filter_clusters (final_clusters, total_spikes, minimal_support=0.005):
 
   labels = [None] * total_spikes
   all_waves = None
+  encoded_waves = None
   index = 0
   thrown_spikes = 0
   kept_cluster = 0
@@ -107,8 +108,10 @@ def filter_clusters (final_clusters, total_spikes, minimal_support=0.005):
 
     if all_waves is None:
       all_waves = each[3]
+      encoded_waves = each[0]
     else:
       all_waves = np.vstack((all_waves, each[3]))
+      encoded_waves = np.vstack((encoded_waves, each[0]))
     for _ in range(len(each[0])):
       labels[index] = idx
       index += 1
@@ -118,4 +121,4 @@ def filter_clusters (final_clusters, total_spikes, minimal_support=0.005):
   if index + thrown_spikes != total_spikes:
     raise Exception ("Something is off %d %d %d" % (index, thrown_spikes, total_spikes))
 
-  return all_waves, labels, thrown_spikes
+  return encoded_waves, all_waves, labels, thrown_spikes

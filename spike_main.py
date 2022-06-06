@@ -222,19 +222,20 @@ def main ():
     logging.critical ("Done merging spikes. Total %d clusters!!!" % (len(final_clusters)))
 
     # Lastly, classify the results with SVM
-    all_waves, labels, n_thrown_spikes = filter_clusters(final_clusters, total_spikes)
+    encoded_waves, all_waves, labels, n_thrown_spikes = filter_clusters(final_clusters, total_spikes)
     logging.critical ("Done filtering. Ended up %d clusters and threw away %d spikes!!!" % (len(np.unique(labels)), n_thrown_spikes))
 
     logging.critical ("Started SVM classification!!!")
-    svm_classifier.Fit (data=all_waves, label=labels)
+    svm_classifier.Fit (data=encoded_waves, label=labels)
     logging.critical ("Done SVM classification!!!")
 
     scatter(all_waves, labels, svm_classifier)
 
     # Consume trained SVMs
     new_spikes = get_sample_spikes ()
+    new_encoded_spikes = encoder.predict(np.array(new_spikes))
     new_labels = []
-    for each in new_spikes:
+    for each in new_encoded_spikes:
       res = svm_classifier.Predict (each)
       new_labels.append(res)
 
